@@ -195,9 +195,6 @@ do_crypt() {
     }
     cryptkey+=("$key_indice")
   done
-  # initialize buffer
-  unset crypt_buffer
-  local crypt_buffer
   # fetch target data, error if empty
   target_data="$2"
   [ -z "$target_data" ] && {
