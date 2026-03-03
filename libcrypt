@@ -1,0 +1,254 @@
+#!/usr/bin/env zsh
+
+genrnd() {
+  unset working_num_raw
+  unset conv_to_decimal
+  unset working_num
+  genrnd_count=0
+  exec {fd}< /dev/urandom
+  while IFS= noglob read -r -k1 -u$fd working_num_raw; do
+    working_num=$(printf "%02x" "'$working_num_raw")
+    conv_to_decimal="$(print -n $((16#$working_num)))"  &> /dev/null
+    print -n "$conv_to_decimal"
+    [ "$genrnd_count" = 3 ] && {
+      break
+    } || {
+      genrnd_count=$((genrnd_count+1))
+    }
+  done
+  exec {fd}<&-
+  return 0
+}
+
+mk_hex() {
+  local input="$1"
+  while true; do
+    char=${input::1}
+    input=${input:1}
+    [ -z "$char" ] && {
+      break
+    }
+    printf "%02x" "'$char"
+  done
+}
+
+mk_dec() {
+  local input="$1"
+  local hex=$(mk_hex "$input")
+  print "$((16#$hex))"
+}
+
+gen_rand_raw() {
+  unset rand_dat
+  keyln=256
+  until ((${#rand_dat}>="$keyln")); do
+    rand_dat=""$(([##16]$(genrnd)))""$rand_dat""
+  done
+  until ((${#rand_dat}=="$keyln")); do
+    rand_dat=${rand_dat:1}
+  done
+  print $rand_dat
+}
+
+gen_rand_dat() {
+  rnd_dat=$(gen_rand_raw)
+  rnd_ln=${#rnd_dat}
+  buffer=''
+  for ((i=0; i<$rnd_ln; i++)); do
+    buffy=${rnd_dat:$i:1}
+    [ -z "$buffer" ] && {
+      buffer="$buffy"
+    } || {
+      ((${#buffer}==2)) && {
+        buffer=$((16#$buffer))
+        # use 126 instead of 127 because we dont want DEL chars
+        ((buffer>126)) && {
+          ((buffer=(buffer%126)))
+        }
+        # ensure num is a minimum of 32 so we dont get control bytes
+        ((buffer<32)) && {
+          ((buffer=(126-buffer)))
+        }
+        buffer=$(([##16]$buffer))
+        ((${#buffer}==2)) && {
+          print -n "\x"$buffer""
+          buffer="$buffy"
+        }
+      } || {
+        buffer=""$buffer""$buffy""
+      }
+    }
+  done
+  ! [ -z "$buffer" ] && {
+    buffer="2"$buffer""
+    print -n "\x"$buffer""
+  }
+}
+
+krevstr() {
+  local str="$1"
+  local reversed
+  for (( i=$#str; i>0; i-- )); do
+    reversed+="${str[$i,$i]}"
+  done
+  print -r "$reversed"
+}
+
+do_bitwise_xor() {
+  a="$1"
+  b="$2"
+  char_a=$(mk_dec "$a")
+  char_b=$(mk_dec "$b")
+  conv=$((char_a^char_b))
+  conv=$(([##16]$conv))
+  ((${#conv}<2)) && {
+    conv="0"$conv""
+  }
+  print -n "\x"$conv""
+}
+
+gen_xl_key() {
+# generate 5 sub-keys
+  key1="$(gen_rand_dat)"
+  key2="$(gen_rand_dat)"
+  key3="$(gen_rand_dat)"
+  key4="$(gen_rand_dat)"
+  key5="$(gen_rand_dat)"
+
+  output_buffer=''
+
+  # shuffle sub-keys together into priv key
+  for ((i=0; i<=101; i++)); do
+    output_buffer=""$output_buffer""${key1:$i:1}""${key2:$i:1}""${key3:$i:1}""${key4:$i:1}""${key5:$i:1}""
+  done
+
+  # use remaining key chars as salt
+  key1=${key1:102}
+  key2=${key2:102}
+  key3=${key3:102}
+  key4=${key4:102}
+  key5=${key5:102}
+
+  salt=""$key1""$key2""$key3""$key4""$key5""
+
+  # trim leading 2 bytes from salt, add to priv-key
+  salt_trimmed=${salt: :2}
+  salt=${salt:2}
+  salt_trim_a=${salt_trimmed::1}
+  salt_trim_b=${salt_trimmed:1:1}
+  output_buffer=""$salt_trim_a""$output_buffer""$salt_trim_b""
+
+  # trim salt to 128
+  salt=${salt:5}
+
+  output_buffer=${output_buffer:64}
+  output_buffer=$(krevstr "$output_buffer")
+  output_buffer=${output_buffer:64}
+  output_buffer=""${salt: :64}""$output_buffer""
+  salt=${salt:64}
+  output_buffer=$(krevstr "$output_buffer")
+  output_buffer=""${salt: :64}""$output_buffer""
+
+  print -r "$output_buffer"
+}
+
+gen_key() {
+  output_buffer=$(gen_rand_dat)
+  print -r ${output_buffer::128}
+}
+
+gen_small_key() {
+  output_buffer=$(gen_key)
+  print -r ${output_buffer:64}
+}
+
+do_crypt() {
+  # fetch key name, error if key not exist
+  target_key="$1"
+  ! [ -f "$target_key" ] && {
+    print "Error: key not exist"
+    return 1
+  }
+  # read in target key from file (we can just use $(< $file) since we dont care about newline preservation on keyfile)
+  target_key=$(< "$target_key")
+  # error if key empty
+  [ -z "$target_key" ] && {
+    print "Error: provided key is empty"
+    return 1
+  }
+  # error if key too small
+  ((${#target_key}<64)) && {
+    print "Error: provided key is too small (min size 64 byte)"
+    return 1
+  }
+  target_key_ln=${#target_key}
+  # convert key to array
+  unset cryptkey
+  declare -a cryptkey
+  while true; do
+    key_indice=${target_key::1}
+    target_key=${target_key:1}
+    [ -z "$key_indice" ] && {
+      break
+    }
+    cryptkey+=("$key_indice")
+  done
+  # initialize buffer
+  unset crypt_buffer
+  local crypt_buffer
+  # fetch target data, error if empty
+  target_data="$2"
+  [ -z "$target_data" ] && {
+    print "Error: target data is empty!"
+    return 1
+  }
+  # if data is file; read like one
+  [ -f "$target_data" ] && {
+    ! [ "$decrypt" = 1 ] && {
+      [ -f ""$target_data".crypt" ] && {
+        rm -rf ""$target_data".crypt"
+      }
+      print -n '' > ""$target_data".crypt"
+    }
+    [ "$decrypt" = 1 ] && {
+      target_orig=$(krevstr "$target_data")
+      target_orig=${target_orig:6}
+      target_orig=$(krevstr "$target_orig")
+      [ -f "$target_orig" ] && {
+        rm -rf "$target_orig"
+      }
+      print -n '' > "$target_orig"
+    }
+    exec {filedat}< "$target_data"
+    key_counter=1
+    while IFS= noglob read -r -k1 -u$filedat char; do
+      keychar=$cryptkey[$key_counter]
+      [ "$decrypt" = 1 ] && {
+        do_bitwise_xor "$char" "$keychar" >> "$target_orig"
+      } || {
+        do_bitwise_xor "$char" "$keychar" >> ""$target_data".crypt"
+      }
+      ((key_counter++))
+      ((key_counter>target_key_ln)) && {
+        key_counter=1
+      }
+    done
+    exec {filedat}<&-
+  # else if data isnt a file
+  } || {
+    keycounter=1
+    while true; do
+      char=${target_data::1}
+      target_data=${target_data:1}
+      [ -z "$char" ] && {
+        break
+      }
+      keychar=$cryptkey[$key_counter]
+      do_bitwise_xor "$char" "$keychar"
+      ((keycounter++))
+      ((keycounter>target_key_ln)) && {
+        keycounter=1
+      }
+    done
+  }
+}
