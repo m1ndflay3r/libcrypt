@@ -223,7 +223,6 @@ do_crypt() {
     }
     exec {filedat}< "$target_data"
     key_counter=1
-#    while IFS= noglob read -r -k1 -u$filedat char; do
     while sysread -i $filedat -s 1 char; do
       keychar=$cryptkey[$key_counter]
       [ "$decrypt" = 1 ] && {
