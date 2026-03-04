@@ -10,12 +10,11 @@ genrnd() {
   exec {fd}< /dev/urandom
   while IFS= noglob read -r -k1 -u$fd working_num_raw; do
     working_num=$(printf "%02x" "'$working_num_raw")
-    conv_to_decimal="$(print -n $((16#$working_num)))"  &> /dev/null
-    print -n "$conv_to_decimal"
+    print -n "$working_num"
     [ "$genrnd_count" = 3 ] && {
       break
     } || {
-      genrnd_count=$((genrnd_count+1))
+      ((genrnd_count++))
     }
   done
   exec {fd}<&-
@@ -26,7 +25,7 @@ gen_rand_raw() {
   unset rand_dat
   keyln=256
   until ((${#rand_dat}>="$keyln")); do
-    rand_dat=""$(([##16]$(genrnd)))""$rand_dat""
+    rand_dat=""$(genrnd)""$rand_dat""
   done
   until ((${#rand_dat}=="$keyln")); do
     rand_dat=${rand_dat:1}
