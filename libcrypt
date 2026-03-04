@@ -22,24 +22,6 @@ genrnd() {
   return 0
 }
 
-mk_hex() {
-  local input="$1"
-  while true; do
-    char=${input::1}
-    input=${input:1}
-    [ -z "$char" ] && {
-      break
-    }
-    printf "%02x" "'$char"
-  done
-}
-
-mk_dec() {
-  local input="$1"
-  local hex=$(mk_hex "$input")
-  print "$((16#$hex))"
-}
-
 gen_rand_raw() {
   unset rand_dat
   keyln=256
@@ -97,12 +79,9 @@ krevstr() {
 }
 
 do_bitwise_xor() {
-  a="$1"
-  b="$2"
-  char_a=$(mk_dec "$a")
-  char_b=$(mk_dec "$b")
-  conv=$((char_a^char_b))
-  conv=$(([##16]$conv))
+  a=$(printf "%02x" "'$1")
+  b=$(printf "%02x" "'$2")
+  conv=$(([##16]0x$a^0x$b))
   ((${#conv}<2)) && {
     conv="0"$conv""
   }
