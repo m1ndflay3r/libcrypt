@@ -6,35 +6,22 @@ genrnd() {
   unset working_num_raw
   unset conv_to_decimal
   unset working_num
+  keyln=128
   genrnd_count=0
   exec {fd}< /dev/urandom
-  while IFS= noglob read -r -k1 -u$fd working_num_raw; do
-    working_num=$(printf "%02x" "'$working_num_raw")
-    print -n "$working_num"
-    [ "$genrnd_count" = 3 ] && {
+  while sysread -i $fd -s 1 working_num_raw; do
+    printf "%02x" "'$working_num_raw"
+    ((genrnd_count==keyln)) && {
       break
-    } || {
-      ((genrnd_count++))
     }
+    ((genrnd_count++))
   done
   exec {fd}<&-
   return 0
 }
 
-gen_rand_raw() {
-  unset rand_dat
-  keyln=256
-  until ((${#rand_dat}>="$keyln")); do
-    rand_dat=""$(genrnd)""$rand_dat""
-  done
-  until ((${#rand_dat}=="$keyln")); do
-    rand_dat=${rand_dat:1}
-  done
-  print $rand_dat
-}
-
 gen_rand_dat() {
-  rnd_dat=$(gen_rand_raw)
+  rnd_dat=$(genrnd)
   rnd_ln=${#rnd_dat}
   buffer=''
   for ((i=0; i<$rnd_ln; i++)); do
@@ -88,58 +75,24 @@ do_bitwise_xor() {
 }
 
 gen_xl_key() {
-# generate 5 sub-keys
-  key1="$(gen_rand_dat)"
-  key2="$(gen_rand_dat)"
-  key3="$(gen_rand_dat)"
-  key4="$(gen_rand_dat)"
-  key5="$(gen_rand_dat)"
-
   output_buffer=''
-
-  # shuffle sub-keys together into priv key
-  for ((i=0; i<=101; i++)); do
-    output_buffer=""$output_buffer""${key1:$i:1}""${key2:$i:1}""${key3:$i:1}""${key4:$i:1}""${key5:$i:1}""
+  until [[ ${#output_buffer} -ge 256 ]]; do
+    output_buffer=""$output_buffer""$(gen_rand_dat)""
   done
-
-  # use remaining key chars as salt
-  key1=${key1:102}
-  key2=${key2:102}
-  key3=${key3:102}
-  key4=${key4:102}
-  key5=${key5:102}
-
-  salt=""$key1""$key2""$key3""$key4""$key5""
-
-  # trim leading 2 bytes from salt, add to priv-key
-  salt_trimmed=${salt: :2}
-  salt=${salt:2}
-  salt_trim_a=${salt_trimmed::1}
-  salt_trim_b=${salt_trimmed:1:1}
-  output_buffer=""$salt_trim_a""$output_buffer""$salt_trim_b""
-
-  # trim salt to 128
-  salt=${salt:5}
-
-  output_buffer=${output_buffer:64}
-  output_buffer=$(krevstr "$output_buffer")
-  output_buffer=${output_buffer:64}
-  output_buffer=""${salt: :64}""$output_buffer""
-  salt=${salt:64}
-  output_buffer=$(krevstr "$output_buffer")
-  output_buffer=""${salt: :64}""$output_buffer""
-
-  print -r "$output_buffer"
+  output_buffer=${output_buffer::256}
+  noglob printf "%s" "$output_buffer"
 }
 
 gen_key() {
   output_buffer=$(gen_rand_dat)
-  print -r ${output_buffer::128}
+  output_buffer=${output_buffer::128}
+  noglob printf "%s" "$output_buffer"
 }
 
 gen_small_key() {
   output_buffer=$(gen_key)
-  print -r ${output_buffer:64}
+  output_buffer=${output_buffer::64}
+  noglob printf "%s" "$output_buffer"
 }
 
 do_crypt() {
