@@ -58,7 +58,7 @@ gen_rand_dat() {
 krevstr() {
   local str="$1"
   local reversed
-  for (( i=$#str; i>0; i-- )); do
+  for ((i=$#str; i>0; i--)); do
     reversed+="${str[$i,$i]}"
   done
   print -r "$reversed"
