@@ -6,7 +6,7 @@ genrnd() {
   unset working_num_raw
   unset conv_to_decimal
   unset working_num
-  keyln=128
+  keyln=127
   genrnd_count=0
   exec {fd}< /dev/urandom
   while sysread -i $fd -s 1 working_num_raw; do
