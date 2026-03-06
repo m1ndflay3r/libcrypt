@@ -10,7 +10,17 @@ genrnd() {
   genrnd_count=0
   exec {fd}< /dev/urandom
   while sysread -i $fd -s 1 working_num_raw; do
-    printf "%02x" "'$working_num_raw"
+    grnd_out=$(printf "%02x" "'$working_num_raw")
+    genrnd_chk=$((16#$grnd_out))
+    (((genrnd_chk<32)) || ((genrnd_chk>126))) && {
+      until (((genrnd_chk>=32)) && ((genrnd_chk<=126))); do
+        unset working_num_raw
+        sysread -i $fd -s 1 working_num_raw
+        grnd_out=$(printf "%02x" "'$working_num_raw")
+        genrnd_chk=$((16#$grnd_out))
+      done
+    }
+    printf "%s" "$grnd_out"
     ((genrnd_count==keyln)) && {
       break
     }
@@ -30,20 +40,8 @@ gen_rand_dat() {
       buffer="$buffy"
     } || {
       ((${#buffer}==2)) && {
-        buffer=$((16#$buffer))
-        # use 126 instead of 127 because we dont want DEL chars
-        ((buffer>126)) && {
-          ((buffer=(buffer%126)))
-        }
-        # ensure num is a minimum of 32 so we dont get control bytes
-        ((buffer<32)) && {
-          ((buffer=(126-buffer)))
-        }
-        buffer=$(([##16]$buffer))
-        ((${#buffer}==2)) && {
-          print -n "\x"$buffer""
-          buffer="$buffy"
-        }
+        print -n "\x"$buffer""
+        buffer="$buffy"
       } || {
         buffer=""$buffer""$buffy""
       }
