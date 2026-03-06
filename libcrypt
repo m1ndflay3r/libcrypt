@@ -30,27 +30,13 @@ genrnd() {
   return 0
 }
 
-gen_rand_dat() {
+gen_key() {
   rnd_dat=$(genrnd)
   rnd_ln=${#rnd_dat}
-  buffer=''
   for ((i=0; i<$rnd_ln; i++)); do
-    buffy=${rnd_dat:$i:1}
-    [ -z "$buffer" ] && {
-      buffer="$buffy"
-    } || {
-      ((${#buffer}==2)) && {
-        print -n "\x"$buffer""
-        buffer="$buffy"
-      } || {
-        buffer=""$buffer""$buffy""
-      }
-    }
+    print -n "\x"${rnd_dat:$i:2}""
+    ((i++))
   done
-  ! [ -z "$buffer" ] && {
-    buffer="2"$buffer""
-    print -n "\x"$buffer""
-  }
 }
 
 krevstr() {
@@ -75,15 +61,9 @@ do_bitwise_xor() {
 gen_xl_key() {
   output_buffer=''
   until [[ ${#output_buffer} -ge 256 ]]; do
-    output_buffer=""$output_buffer""$(gen_rand_dat)""
+    output_buffer=""$output_buffer""$(gen_key)""
   done
   output_buffer=${output_buffer::256}
-  noglob printf "%s" "$output_buffer"
-}
-
-gen_key() {
-  output_buffer=$(gen_rand_dat)
-  output_buffer=${output_buffer::128}
   noglob printf "%s" "$output_buffer"
 }
 
