@@ -2,10 +2,9 @@
 
 zmodload zsh/system
 
-genrnd() {
+gen_key() {
+  keyln=$1
   unset working_num_raw
-  unset conv_to_decimal
-  unset working_num
   ([ -z "$keyln" ] || ! [[ $keyln =~ ^[0-9]+$ ]] || ((keyln<1))) && {
     keyln=128
   }
@@ -20,7 +19,7 @@ genrnd() {
         grnd_out=$(printf "%02x" "'$working_num_raw")
       done
     }
-    printf "%s" "$grnd_out"
+    print -n "\x"$grnd_out""
     ((genrnd_count==keyln)) && {
       break
     }
@@ -28,16 +27,6 @@ genrnd() {
   done
   exec {fd}<&-
   return 0
-}
-
-gen_key() {
-  keyln=$1
-  rnd_dat=$(keyln=$keyln genrnd)
-  rnd_ln=${#rnd_dat}
-  for ((i=0; i<$rnd_ln; i++)); do
-    print -n "\x"${rnd_dat:$i:2}""
-    ((i++))
-  done
 }
 
 do_bitwise_xor() {
