@@ -6,18 +6,18 @@ genrnd() {
   unset working_num_raw
   unset conv_to_decimal
   unset working_num
-  keyln=127
-  genrnd_count=0
+  ([ -z "$keyln" ] || ! [[ $keyln =~ ^[0-9]+$ ]] || ((keyln<1))) && {
+    keyln=128
+  }
+  genrnd_count=1
   exec {fd}< /dev/urandom
   while sysread -i $fd -s 1 working_num_raw; do
     grnd_out=$(printf "%02x" "'$working_num_raw")
-    genrnd_chk=$((16#$grnd_out))
-    (((genrnd_chk<32)) || ((genrnd_chk>126))) && {
-      until (((genrnd_chk>=32)) && ((genrnd_chk<=126))); do
+    (((0x$grnd_out<0x20)) || ((0x$grnd_out>0x7e))) && {
+      until (((0x$grnd_out>=0x20)) && ((0x$grnd_out<=0x7e))); do
         unset working_num_raw
         sysread -i $fd -s 1 working_num_raw
         grnd_out=$(printf "%02x" "'$working_num_raw")
-        genrnd_chk=$((16#$grnd_out))
       done
     }
     printf "%s" "$grnd_out"
@@ -31,7 +31,8 @@ genrnd() {
 }
 
 gen_key() {
-  rnd_dat=$(genrnd)
+  keyln=$1
+  rnd_dat=$(keyln=$keyln genrnd)
   rnd_ln=${#rnd_dat}
   for ((i=0; i<$rnd_ln; i++)); do
     print -n "\x"${rnd_dat:$i:2}""
@@ -56,21 +57,6 @@ do_bitwise_xor() {
     conv="0"$conv""
   }
   print -n "\x"$conv""
-}
-
-gen_xl_key() {
-  output_buffer=''
-  until [[ ${#output_buffer} -ge 256 ]]; do
-    output_buffer=""$output_buffer""$(gen_key)""
-  done
-  output_buffer=${output_buffer::256}
-  noglob printf "%s" "$output_buffer"
-}
-
-gen_small_key() {
-  output_buffer=$(gen_key)
-  output_buffer=${output_buffer::64}
-  noglob printf "%s" "$output_buffer"
 }
 
 do_crypt() {
