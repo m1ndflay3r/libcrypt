@@ -40,15 +40,6 @@ gen_key() {
   done
 }
 
-krevstr() {
-  local str="$1"
-  local reversed
-  for ((i=$#str; i>0; i--)); do
-    reversed+="${str[$i,$i]}"
-  done
-  print -r "$reversed"
-}
-
 do_bitwise_xor() {
   a=$(printf "%02x" "'$1")
   b=$(printf "%02x" "'$2")
@@ -68,20 +59,14 @@ do_crypt() {
   }
   # read in target key from file (we can just use $(< $file) since we dont care about newline preservation on keyfile)
   target_key=$(< "$target_key")
-  # error if key empty
   [ -z "$target_key" ] && {
     print "Error: provided key is empty"
-    return 1
-  }
-  # error if key too small
-  ((${#target_key}<64)) && {
-    print "Error: provided key is too small (min size 64 byte)"
     return 1
   }
   target_key_ln=${#target_key}
   # convert key to array
   unset cryptkey
-  declare -a cryptkey
+  typeset -a cryptkey
   while true; do
     key_indice=${target_key::1}
     target_key=${target_key:1}
@@ -106,9 +91,10 @@ do_crypt() {
     }
     # if we're decrypting, check for .crypt extension on target
     ((decrypt==1)) && {
-      target_orig=$(krevstr "$target_data")
-      target_safety_check=${target_orig::6}
-      target_safety_check=$(krevstr "$target_safety_check")
+      tsc_ln=${#target_data}
+      tsc_ln=$((tsc_ln-6))
+      target_orig=${target_data::$tsc_ln}
+      target_safety_check=${target_data:$tsc_ln}
       [ "$target_safety_check" != '.crypt' ] && {
         [ "$override_safety" != 1 ] && {
           print "Error: target does not appear to be a .crypt file"
@@ -117,8 +103,6 @@ do_crypt() {
           print "Warn: target does not appear to be a .crypt file"
         }
       }
-      target_orig=${target_orig:6}
-      target_orig=$(krevstr "$target_orig")
       [ -f "$target_orig" ] && {
         rm -rf "$target_orig"
       }
