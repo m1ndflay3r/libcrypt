@@ -101,7 +101,7 @@ do_crypt() {
     exec {filedat}<&-
   # else if data isnt a file
   } || {
-    keycounter=1
+    key_counter=1
     while true; do
       char=${target_data::1}
       target_data=${target_data:1}
