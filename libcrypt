@@ -54,16 +54,7 @@ do_crypt() {
   }
   target_key_ln=${#target_key}
   # convert key to array
-  unset cryptkey
-  typeset -a cryptkey
-  while true; do
-    key_indice=${target_key::1}
-    target_key=${target_key:1}
-    [ -z "$key_indice" ] && {
-      break
-    }
-    cryptkey+=("$key_indice")
-  done
+  local -a cryptkey=(${(s::)target_key})
   # fetch target data, error if empty
   target_data="$2"
   [ -z "$target_data" ] && {
