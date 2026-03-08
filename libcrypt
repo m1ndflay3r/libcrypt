@@ -58,6 +58,8 @@ do_crypt() {
       rm -rf ""$target_data".crypt"
     }
     print -n '' > ""$target_data".crypt"
+    # open file descriptor for crypt data
+    exec {cryptdat}> ""$target_data".crypt"
     # open file descriptor, read 1 byte at a time
     exec {filedat}< "$target_data"
     key_counter=1
@@ -67,23 +69,26 @@ do_crypt() {
       ((${#conv}<2)) && {
         conv="0"$conv""
       }
-      print -n "\x"$conv"" >> ""$target_data".crypt"
+      print -n -u$cryptdat -- "\x"$conv""
       ((key_counter++))
       ((key_counter>target_key_ln)) && {
         key_counter=1
       }
     done
+    exec {cryptdat}>&-
+    exec {filedat}<&-
     # if nodel not set, overwrite contents of original file with crypt data and delete crypt file
     [[ "$nodel" != 1 ]] && {
       exec {cryptdat}< ""$target_data".crypt"
       print -n '' > "$target_data"
+      exec {filedat}> "$target_data"
       while sysread -i $cryptdat -s 1 char; do
-        noglob printf "%s" "$char" >> "$target_data"
+        syswrite -o $filedat -- "$char"
       done
       exec {cryptdat}<&-
       rm -rf ""$target_data".crypt"
+      exec {filedat}>&-
     }
-    exec {filedat}<&-
   # else if data isnt a file
   } || {
     key_counter=1
