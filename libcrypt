@@ -29,16 +29,6 @@ gen_key() {
   return 0
 }
 
-do_bitwise_xor() {
-  a=$(printf "%02x" "'$1")
-  b=$(printf "%02x" "'$2")
-  conv=$(([##16]0x$a^0x$b))
-  ((${#conv}<2)) && {
-    conv="0"$conv""
-  }
-  print -n "\x"$conv""
-}
-
 do_crypt() {
   # fetch key name, error if key not exist
   target_key="$1"
@@ -73,7 +63,11 @@ do_crypt() {
     key_counter=1
     while sysread -i $filedat -s 1 char; do
       keychar=$cryptkey[$key_counter]
-      do_bitwise_xor "$char" "$keychar" >> ""$target_data".crypt"
+      local conv=$(([##16]#char^#keychar))
+      ((${#conv}<2)) && {
+        conv="0"$conv""
+      }
+      print -n "\x"$conv"" >> ""$target_data".crypt"
       ((key_counter++))
       ((key_counter>target_key_ln)) && {
         key_counter=1
@@ -100,7 +94,11 @@ do_crypt() {
         break
       }
       keychar=$cryptkey[$key_counter]
-      do_bitwise_xor "$char" "$keychar"
+      local conv=$(([##16]#char^#keychar))
+      ((${#conv}<2)) && {
+        conv="0"$conv""
+      }
+      print -n "\x"$conv""
       ((keycounter++))
       ((keycounter>target_key_ln)) && {
         keycounter=1
