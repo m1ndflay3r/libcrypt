@@ -11,12 +11,12 @@ gen_key() {
   genrnd_count=1
   exec {fd}< /dev/urandom
   while sysread -i $fd -s 1 working_num_raw; do
-    grnd_out=$(printf "%02x" "'$working_num_raw")
+    ((grnd_out=([##16]#working_num_raw)))
     (((0x$grnd_out<0x20)) || ((0x$grnd_out>0x7e))) && {
       until (((0x$grnd_out>=0x20)) && ((0x$grnd_out<=0x7e))); do
         unset working_num_raw
         sysread -i $fd -s 1 working_num_raw
-        grnd_out=$(printf "%02x" "'$working_num_raw")
+        ((grnd_out=([##16]#working_num_raw)))
       done
     }
     print -n "\x"$grnd_out""
