@@ -66,10 +66,7 @@ do_crypt() {
     while sysread -i $filedat -s 1 char; do
       keychar=$cryptkey[$key_counter]
       local conv=$(([##16]#char^#keychar))
-      ((${#conv}<2)) && {
-        conv="0"$conv""
-      }
-      print -n -u$cryptdat -- "\x"$conv""
+      print -n -u$cryptdat -- "\x"${(l{2}{0})conv}""
       ((key_counter++))
       ((key_counter>target_key_ln)) && {
         key_counter=1
@@ -100,10 +97,7 @@ do_crypt() {
       }
       keychar=$cryptkey[$key_counter]
       local conv=$(([##16]#char^#keychar))
-      ((${#conv}<2)) && {
-        conv="0"$conv""
-      }
-      print -n "\x"$conv""
+      print -n "\x"${(l{2}{0})conv}""
       ((keycounter++))
       ((keycounter>target_key_ln)) && {
         keycounter=1
