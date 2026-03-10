@@ -15,8 +15,6 @@ gen_key() {
     ((grnd_out=([##16]#working_num_raw)))
     (((0x$grnd_out<0x20)) || ((0x$grnd_out>0x7e))) && {
       until (((0x$grnd_out>=0x20)) && ((0x$grnd_out<=0x7e))); do
-        unset working_num_raw
-        local working_num_raw
         sysread -i $fd -s 1 working_num_raw
         ((grnd_out=([##16]#working_num_raw)))
       done
