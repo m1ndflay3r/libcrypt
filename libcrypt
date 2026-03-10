@@ -98,9 +98,9 @@ do_crypt() {
       local keychar=$cryptkey[$key_counter]
       local conv=$(([##16]#char^#keychar))
       print -n "\x"${(l{2}{0})conv}""
-      ((keycounter++))
-      ((keycounter>target_key_ln)) && {
-        keycounter=1
+      ((key_counter++))
+      ((key_counter>target_key_ln)) && {
+        key_counter=1
       }
     done
   }
