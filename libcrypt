@@ -31,22 +31,22 @@ gen_key() {
 
 do_crypt() {
   # fetch key name, error if key not exist
-  target_key="$1"
+  local target_key="$1"
   ! [ -f "$target_key" ] && {
     print "Error: key not exist"
     return 1
   }
   # read in target key from file (we can just use $(< $file) since we dont care about newline preservation on keyfile)
-  target_key=$(< "$target_key")
+  local target_key=$(< "$target_key")
   [ -z "$target_key" ] && {
     print "Error: provided key is empty"
     return 1
   }
-  target_key_ln=${#target_key}
+  local target_key_ln=${#target_key}
   # convert key to array
   local -a cryptkey=(${(s::)target_key})
   # fetch target data, error if empty
-  target_data="$2"
+  local target_data="$2"
   [ -z "$target_data" ] && {
     print "Error: target data is empty!"
     return 1
@@ -62,9 +62,9 @@ do_crypt() {
     exec {cryptdat}> ""$target_data".crypt"
     # open file descriptor, read 1 byte at a time
     exec {filedat}< "$target_data"
-    key_counter=1
+    local key_counter=1
     while sysread -i $filedat -s 1 char; do
-      keychar=$cryptkey[$key_counter]
+      local keychar=$cryptkey[$key_counter]
       local conv=$(([##16]#char^#keychar))
       print -n -u$cryptdat -- "\x"${(l{2}{0})conv}""
       ((key_counter++))
@@ -88,14 +88,14 @@ do_crypt() {
     }
   # else if data isnt a file
   } || {
-    key_counter=1
+    local key_counter=1
     while true; do
-      char=${target_data::1}
-      target_data=${target_data:1}
+      local char=${target_data::1}
+      local target_data=${target_data:1}
       [ -z "$char" ] && {
         break
       }
-      keychar=$cryptkey[$key_counter]
+      local keychar=$cryptkey[$key_counter]
       local conv=$(([##16]#char^#keychar))
       print -n "\x"${(l{2}{0})conv}""
       ((keycounter++))
