@@ -3,18 +3,20 @@
 zmodload zsh/system
 
 gen_key() {
-  keyln=$1
+  local keyln=$1
   unset working_num_raw
   ([ -z "$keyln" ] || ! [[ $keyln =~ ^[0-9]+$ ]] || ((keyln<1))) && {
     keyln=128
   }
-  genrnd_count=1
+  local genrnd_count=1
+  local grnd_out working_num_raw
   exec {fd}< /dev/urandom
   while sysread -i $fd -s 1 working_num_raw; do
     ((grnd_out=([##16]#working_num_raw)))
     (((0x$grnd_out<0x20)) || ((0x$grnd_out>0x7e))) && {
       until (((0x$grnd_out>=0x20)) && ((0x$grnd_out<=0x7e))); do
         unset working_num_raw
+        local working_num_raw
         sysread -i $fd -s 1 working_num_raw
         ((grnd_out=([##16]#working_num_raw)))
       done
