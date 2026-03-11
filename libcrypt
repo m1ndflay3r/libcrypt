@@ -8,9 +8,10 @@ gen_key() {
   ([ -z "$keyln" ] || ! [[ $keyln =~ ^[0-9]+$ ]] || ((keyln<1))) && {
     keyln=128
   }
-  local genrnd_count=1
+  local -i genrnd_count=1
   local grnd_out working_num_raw
   exec {fd}< /dev/urandom
+  trap "exec {fd}<&-; return 1" INT TERM
   while sysread -i $fd -s 1 working_num_raw; do
     ((grnd_out=([##16]#working_num_raw)))
     (((0x$grnd_out<0x20)) || ((0x$grnd_out>0x7e))) && {
@@ -63,6 +64,7 @@ do_crypt() {
     exec {cryptdat}> ""$target_data".crypt"
     # open file descriptor, read 1 byte at a time
     exec {filedat}< "$target_data"
+    trap "exec {cryptdat}>&-; exec {filedat}<&-; return 1" INT TERM
     local key_counter=1
     set +o MULTIBYTE
     while sysread -i $filedat -s 1 char; do
@@ -81,6 +83,7 @@ do_crypt() {
       exec {cryptdat}< ""$target_data".crypt"
       print -n '' > "$target_data"
       exec {filedat}> "$target_data"
+      trap "exec {cryptdat}<&-; exec {filedat}>&-; return 1" INT TERM
       while sysread -i $cryptdat -s 1 char; do
         syswrite -o $filedat -- "$char"
       done
