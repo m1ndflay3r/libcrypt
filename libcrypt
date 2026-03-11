@@ -30,6 +30,7 @@ gen_key() {
 }
 
 do_crypt() {
+  setopt LOCAL_OPTIONS
   # fetch key name, error if key not exist
   local target_key="$1"
   ! [ -f "$target_key" ] && {
