@@ -147,13 +147,14 @@ do_mt_crypt() {
   # create working directory for process
   proc_id=$(gen_key 8)
   mkdir /tmp/$proc_id
+  trap "rm -rf /tmp/$proc_id; return 1" INT TERM
   chmod 0700 /tmp/$proc_id
   # if target isn't a file, yes it is
   ! [ -f "$target_data" ] && {
     print -n '' > /tmp/$proc_id/source_file
     chmod 0700 /tmp/$proc_id/source_file
     exec {sourcefd}> /tmp/$proc_id/source_file
-    trap "exec {sourcefd}>&-; return 1" INT TERM
+    trap "exec {sourcefd}>&-; rm -rf /tmp/$proc_id; return 1" INT TERM
     syswrite -o $sourcefd "$target_data"
     exec {sourcefd}>&-
     target_data=/tmp/$proc_id/source_file
@@ -162,15 +163,15 @@ do_mt_crypt() {
   }
   # begin iterating over target file in chunks
   exec {sourcefd}< "$target_data"
-  trap "exec {sourcefd}<&-; return 1" INT TERM
+  trap "exec {sourcefd}<&-; rm -rf /tmp/$proc_id; return 1" INT TERM
   while sysread -i $sourcefd -s $chunk_size chunk; do
     print -n '' > /tmp/$proc_id/$worker_id
     chmod 0700 /tmp/$proc_id/$worker_id
     exec {chunkfd}> /tmp/$proc_id/$worker_id
-    trap "exec {chunkfd}>&-; exec {sourcefd}<&-; return 1" INT TERM
+    trap "exec {chunkfd}>&-; exec {sourcefd}<&-; rm -rf /tmp/$proc_id; return 1" INT TERM
     syswrite -o $chunkfd "$chunk"
     exec {chunkfd}>&-
-    trap "exec {sourcefd}<&-; return 1" INT TERM
+    trap "exec {sourcefd}<&-; rm -rf /tmp/$proc_id; return 1" INT TERM
     query_jobs
     ((job_counter>=threadcount)) && {
       until ((job_counter<threadcount)); do
@@ -188,23 +189,25 @@ do_mt_crypt() {
     zselect -t 0.1
   done
   exec {sourcefd}<&-
-  trap "return 1" INT TERM
+  trap "rm -rf /tmp/$proc_id; return 1" INT TERM
   ((is_file)) && {
     ! [ -w "$target_data" ] && {
       target_data=""$target_data".crypt"
     }
     print -n '' > "$target_data"
     exec {sourcefd}> "$target_data"
-    trap "exec {sourcefd}>&-; return 1" INT TERM
+    trap "exec {sourcefd}>&-; rm -rf /tmp/$proc_id; return 1" INT TERM
     # iterate over each output file and print in order
     for ((i=0; i<=$worker_id; i++)); do
       exec {chunkfd}< /tmp/$proc_id/$i
-      trap "exec {chunkfd}<&-; exec {sourcefd}>&-; return 1" INT TERM
+      trap "exec {chunkfd}<&-; exec {sourcefd}>&-; rm -rf /tmp/$proc_id; return 1" INT TERM
       sysread -i $chunkfd chunk
       syswrite -o $sourcefd "$chunk"
       exec {chunkfd}<&-
-      trap "exec {sourcefd}>&-; return 1"
+      trap "exec {sourcefd}>&-; rm -rf /tmp/$proc_id; return 1"
     done
+    exec {sourcefd}>&-
+    trap "rm -rf /tmp/$proc_id; return 1" INT TERM
   } || {
     for ((i=0; i<=$worker_id; i++)); do
       exec {chunkfd}< /tmp/$proc_id/$i
