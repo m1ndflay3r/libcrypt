@@ -78,8 +78,8 @@ do_crypt() {
     done
     exec {cryptdat}>&-
     exec {filedat}<&-
-    # if nodel not set, overwrite contents of original file with crypt data and delete crypt file
-    [[ "$nodel" != 1 ]] && {
+    # if nodel not set + we have write perms, overwrite original file w/ crypt data & delete crypt file
+    [[ "$nodel" != 1 ]] && [ -w "$target_data" ] && {
       exec {cryptdat}< ""$target_data".crypt"
       print -n '' > "$target_data"
       exec {filedat}> "$target_data"
