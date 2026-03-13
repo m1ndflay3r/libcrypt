@@ -31,7 +31,7 @@ gen_key() {
 }
 
 query_jobs () {
-  integer job_counter=0
+  job_counter=0
   while IFS=$'\n' read -r -u0 active_jobs; do
     ((job_counter++))
   done < <(jobs)
