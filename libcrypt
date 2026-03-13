@@ -122,7 +122,6 @@ do_crypt() {
 do_mt_crypt() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
-  zmodload zsh/system
   zmodload zsh/zselect
   local target_key="$1"
   local target_data="$2"
@@ -211,11 +210,13 @@ do_mt_crypt() {
   } || {
     for ((i=0; i<=$worker_id; i++)); do
       exec {chunkfd}< /tmp/$proc_id/$i
-      trap "exec {chunkfd}<&-; return 1" INT TERM
+      trap "exec {chunkfd}<&-; rm -rf /tmp/$proc_id; return 1" INT TERM
       sysread -i $chunkfd chunk
       noglob printf "%s" "$chunk"
       exec {chunkfd}<&-
       trap "return 1" INT TERM
     done
   }
+  rm -rf /tmp/$proc_id
+  return 0
 }
