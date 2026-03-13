@@ -188,10 +188,31 @@ do_mt_crypt() {
     zselect -t 0.1
   done
   exec {sourcefd}<&-
-  exec {sourcefd}> "$target_data"
-  trap "exec {sourcefd}>&-; return 1" INT TERM
-  # iterate over each output file and print in order
-  for ((i=0; i<=$worker_id; i++)); do
-    
-  done
+  trap "return 1" INT TERM
+  ((is_file)) && {
+    ! [ -w "$target_data" ] && {
+      target_data=""$target_data".crypt"
+    }
+    print -n '' > "$target_data"
+    exec {sourcefd}> "$target_data"
+    trap "exec {sourcefd}>&-; return 1" INT TERM
+    # iterate over each output file and print in order
+    for ((i=0; i<=$worker_id; i++)); do
+      exec {chunkfd}< /tmp/$proc_id/$i
+      trap "exec {chunkfd}<&-; exec {sourcefd}>&-; return 1" INT TERM
+      sysread -i $chunkfd chunk
+      syswrite -o $sourcefd "$chunk"
+      exec {chunkfd}<&-
+      trap "exec {sourcefd}>&-; return 1"
+    done
+  } || {
+    for ((i=0; i<=$worker_id; i++)); do
+      exec {chunkfd}< /tmp/$proc_id/$i
+      trap "exec {chunkfd}<&-; return 1" INT TERM
+      sysread -i $chunkfd chunk
+      noglob printf "%s" "$chunk"
+      exec {chunkfd}<&-
+      trap "return 1" INT TERM
+    done
+  }
 }
