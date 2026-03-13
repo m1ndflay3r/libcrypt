@@ -214,7 +214,7 @@ do_mt_crypt() {
       sysread -i $chunkfd chunk
       noglob printf "%s" "$chunk"
       exec {chunkfd}<&-
-      trap "return 1" INT TERM
+      trap "rm -rf /tmp/$proc_id; return 1" INT TERM
     done
   }
   rm -rf /tmp/$proc_id
