@@ -156,6 +156,7 @@ do_mt_crypt() {
     trap "exec {sourcefd}>&-; rm -rf /tmp/$proc_id; return 1" INT TERM
     syswrite -o $sourcefd "$target_data"
     exec {sourcefd}>&-
+    trap "rm -rf /tmp/$proc_id; return 1" INT TERM
     target_data=/tmp/$proc_id/source_file
   } || {
     ((is_file++))
