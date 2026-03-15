@@ -30,13 +30,6 @@ gen_key() {
   return 0
 }
 
-query_jobs () {
-  job_counter=0
-  while IFS=$'\n' read -r -u0 active_jobs; do
-    ((job_counter++))
-  done < <(jobs)
-}
-
 do_crypt() {
   setopt LOCAL_OPTIONS
   # fetch key name, error if key not exist
@@ -123,6 +116,7 @@ do_mt_crypt() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
   zmodload zsh/zselect
+  zmodload zsh/parameter
   local target_key="$1"
   local target_data="$2"
   local -i chunk_size="$3"
@@ -172,10 +166,8 @@ do_mt_crypt() {
     syswrite -o $chunkfd "$chunk"
     exec {chunkfd}>&-
     trap "exec {sourcefd}<&-; rm -rf /tmp/$proc_id; return 1" INT TERM
-    query_jobs
-    ((job_counter>=threadcount)) && {
-      until ((job_counter<threadcount)); do
-        query_jobs
+    ((${#jobstates}>=threadcount)) && {
+      until ((${#jobstates}<threadcount)); do
         zselect -t 0.1
       done
     }
@@ -183,9 +175,7 @@ do_mt_crypt() {
     ((worker_id++))
   done
   # wait for remaining jobs to complete
-  query_jobs
-  until ((job_counter==0)); do
-    query_jobs
+  until ((${#jobstates}==0)); do
     zselect -t 0.1
   done
   exec {sourcefd}<&-
