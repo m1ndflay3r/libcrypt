@@ -1,11 +1,12 @@
 #!/usr/bin/env zsh
 
 zmodload zsh/system
+alias int="integer"
 
 gen_key() {
-  local keyln=$1
+  int keyln=$1
   unset working_num_raw
-  ([ -z "$keyln" ] || ! [[ $keyln =~ ^[0-9]+$ ]] || ((keyln<1))) && {
+  ((keyln<1)) && {
     keyln=128
   }
   local -i genrnd_count=1
@@ -34,12 +35,15 @@ do_crypt() {
   setopt LOCAL_OPTIONS
   # fetch key name, error if key not exist
   local target_key="$1"
-  ! [ -f "$target_key" ] && {
+  int keystream
+  (! [ -f "$target_key" ] && ((keystream!=1))) && {
     print "Error: key not exist"
     return 1
   }
   # read in target key from file (we can just use $(< $file) since we dont care about newline preservation on keyfile)
-  local target_key=$(< "$target_key")
+  ((keystream!=1)) && {
+    local target_key=$(< "$target_key")
+  }
   [ -z "$target_key" ] && {
     print "Error: provided key is empty"
     return 1
@@ -132,14 +136,24 @@ do_mt_crypt() {
     print "  usage: do_mt_crypt <target_key> <target_data>"
     return 1
   }
+  # create working directory for process
+  proc_id=$(mktemp -d /tmp/crypt_XXXXXXXX)
+  trap "rm -rf $proc_id; return 1" INT TERM
+  # if is keystream, conv key to keyfile
+  ((keystream==1)) && {
+    touch $proc_id/key
+    exec {keyfd}> $proc_id/key
+    trap "exec {keyfd}>&-; rm -rf $proc_id; return 1" INT TERM
+    syswrite -o $keyfd "$target_key"
+    exec {keyfd}>&-
+    trap "rm -rf $proc_id; return 1" INT TERM
+    target_key=$proc_id/key
+  }
   # ensure target key not empty
   [ -z "$(< "$target_key")" ] && {
     print "Error: provided key is empty"
     return 1
   }
-  # create working directory for process
-  proc_id=$(mktemp -d /tmp/crypt_XXXXXXXX)
-  trap "rm -rf $proc_id; return 1" INT TERM
   # if target isn't a file, yes it is
   ! [ -f "$target_data" ] && {
     print -n '' > $proc_id/source_file
