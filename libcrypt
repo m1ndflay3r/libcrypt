@@ -82,6 +82,7 @@ do_crypt() {
     done
     exec {cryptdat}>&-
     exec {filedat}<&-
+    trap "return 1" INT TERM
     # if nodel not set + we have write perms, overwrite original file w/ crypt data & delete crypt file
     [[ "$nodel" != 1 ]] && [ -w "$target_data" ] && {
       exec {cryptdat}< ""$target_data".crypt"
@@ -94,6 +95,7 @@ do_crypt() {
       exec {cryptdat}<&-
       rm -rf ""$target_data".crypt"
       exec {filedat}>&-
+      trap "return 1" INT TERM
     }
   # else if data isnt a file
   } || {
