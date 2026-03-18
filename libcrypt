@@ -31,6 +31,37 @@ gen_key() {
   return 0
 }
 
+mutate_key() {
+  setopt LOCAL_OPTIONS
+  set +o MULTIBYTE
+  # fetch key + salt
+  local og_key="$1" salt="$2" new_key newchar new_char nuchar
+  ([ -z "$salt" ] || [ -z "$og_key" ] || ((${#og_key}<8))) && {
+    return 1
+  }
+  # split key into halves
+  local half1=${og_key:$((${#og_key}/2))} \
+        half2=${og_key::$((${#og_key}/2))}
+  # XOR half1 and half2; XOR + AND results against salt
+  local -i salt_count salt_ln=${#salt}
+  for ((i=0; i<$((${#og_key}/2)); i++)); do
+    local char1=${half1:$i:1} \
+          char2=${half2:$i:1}
+    print -v newchar -n -- "\x${(l:2::0:)$(([##16]#char^#char2))}"
+    ((salt_count++))
+    ((salt_count>salt_ln)) && {
+      salt_count=1
+    }
+    local salt_char=$salt[$salt_count]
+    print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char))}"
+    new_key+="$new_char"
+    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#newchar&#salt_char))}"
+    new_key+="$nuchar"
+  done
+  # print new key
+  print -rn -- "$new_key"
+}
+
 do_crypt() {
   setopt LOCAL_OPTIONS
   # fetch key name, error if key not exist
