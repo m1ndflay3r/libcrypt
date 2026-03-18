@@ -66,7 +66,12 @@ do_crypt() {
   setopt LOCAL_OPTIONS
   # fetch key name, error if key not exist
   local target_key="$1"
-  int keystream
+  int keystream no_write_salt
+  ([ -z "$dc_salt" ] || ((keystream!=1))) && {
+    local dc_salt="$(gen_key 8)"
+  } || {
+    ((no_write_salt++))
+  }
   (! [ -f "$target_key" ] && ((keystream!=1))) && {
     print "Error: key not exist"
     return 1
@@ -80,16 +85,20 @@ do_crypt() {
     return 1
   }
   local target_key_ln=${#target_key}
-  # convert key to array
-  local -a cryptkey=(${(s::)target_key})
   # fetch target data, error if empty
   local target_data="$2"
   [ -z "$target_data" ] && {
     print "Error: target data is empty!"
     return 1
   }
+  # first key mutation
+  target_key="$(mutate_key "$target_key" "$dc_salt")"
   # if data is file; read like one
   [ -f "$target_data" ] && {
+    # write salt to file
+    ((no_write_salt)) || {
+      print -rn -- "$dc_salt" > ""$target_data".salt"
+    }
     # create temp file for storing crypt data
     [ -f ""$target_data".crypt" ] && {
       rm -rf ""$target_data".crypt"
@@ -103,11 +112,12 @@ do_crypt() {
     local key_counter=1
     set +o MULTIBYTE
     while sysread -i $filedat -s 1 char; do
-      local keychar=$cryptkey[$key_counter]
+      local keychar=$target_key[$key_counter]
       local conv=$(([##16]#char^#keychar))
       print -n -u$cryptdat -- "\x"${(l{2}{0})conv}""
       ((key_counter++))
       ((key_counter>target_key_ln)) && {
+        target_key="$(mutate_key "$target_key" "$dc_salt")"
         key_counter=1
       }
     done
@@ -132,17 +142,21 @@ do_crypt() {
   } || {
     local key_counter=1
     set +o MULTIBYTE
+    ((no_write_salt)) || {
+      print -rn -- "$dc_salt"
+    }
     while true; do
       local char=${target_data::1}
       local target_data=${target_data:1}
       [ -z "$char" ] && {
         break
       }
-      local keychar=$cryptkey[$key_counter]
+      local keychar=$target_key[$key_counter]
       local conv=$(([##16]#char^#keychar))
       print -n "\x"${(l{2}{0})conv}""
       ((key_counter++))
       ((key_counter>target_key_ln)) && {
+        target_key="$(mutate_key "$target_key" "$dc_salt")"
         key_counter=1
       }
     done
