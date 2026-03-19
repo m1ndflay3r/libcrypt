@@ -92,13 +92,11 @@ do_crypt() {
     [ -f ""$target_data".salt" ] && {
       local dc_salt=$(< ""$target_data".salt")
       ((no_write_salt++))
-      print "DEBUG: salt file detected, so no new salt should be generated"
+      true
     } || {
       local dc_salt="$(gen_key 8)"
-      print "DEBUG: salt not detected; generating new one"
     }
     # first key mutation
-    print "DEBUG: performing first mutation using salt "$dc_salt""
     target_key="$(mutate_key "$target_key" "$dc_salt")"
     # create temp file for storing crypt data
     [ -f ""$target_data".crypt" ] && {
