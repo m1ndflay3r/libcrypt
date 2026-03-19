@@ -42,7 +42,7 @@ mutate_key() {
   # split key into halves
   local half1=${og_key:$((${#og_key}/2))} \
         half2=${og_key::$((${#og_key}/2))}
-  # XOR half1 and half2; XOR + AND results against salt
+  # XOR steps
   local -i salt_count salt_ln=${#salt}
   for ((i=0; i<$((${#og_key}/2)); i++)); do
     local char1=${half1:$i:1} \
@@ -55,7 +55,8 @@ mutate_key() {
     local salt_char=$salt[$salt_count]
     print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char))}"
     new_key+="$new_char"
-    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#newchar&#salt_char))}"
+    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#new_char^#char1))}"
+    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#nuchar^#char2))}"
     new_key+="$nuchar"
   done
   # print new key
@@ -90,9 +91,8 @@ do_crypt() {
   [ -f "$target_data" ] && {
     # if salt exist, use, and set no_write_salt; else gen new salt
     [ -f ""$target_data".salt" ] && {
-      local dc_salt=$(< ""$target_data".salt")
       ((no_write_salt++))
-      true
+      local dc_salt=$(< ""$target_data".salt")
     } || {
       local dc_salt="$(gen_key 8)"
     }
@@ -161,6 +161,7 @@ do_crypt() {
       local dc_salt="$(gen_key 8)"
       print -rn -- "$dc_salt"
     }
+    target_key="$(mutate_key "$target_key" "$dc_salt")"
     while true; do
       local char=${target_data::1}
       local target_data=${target_data:1}
