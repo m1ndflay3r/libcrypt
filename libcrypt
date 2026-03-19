@@ -67,11 +67,6 @@ do_crypt() {
   # fetch key name, error if key not exist
   local target_key="$1"
   int keystream no_write_salt
-  ([ -z "$dc_salt" ] || ((keystream!=1))) && {
-    local dc_salt="$(gen_key 8)"
-  } || {
-    ((no_write_salt++))
-  }
   (! [ -f "$target_key" ] && ((keystream!=1))) && {
     print "Error: key not exist"
     return 1
@@ -91,14 +86,20 @@ do_crypt() {
     print "Error: target data is empty!"
     return 1
   }
-  # first key mutation
-  target_key="$(mutate_key "$target_key" "$dc_salt")"
   # if data is file; read like one
   [ -f "$target_data" ] && {
-    # write salt to file
-    ((no_write_salt)) || {
-      print -rn -- "$dc_salt" > ""$target_data".salt"
+    # if salt exist, use, and set no_write_salt; else gen new salt
+    [ -f ""$target_data".salt" ] && {
+      local dc_salt=$(< ""$target_data".salt")
+      ((no_write_salt++))
+      print "DEBUG: salt file detected, so no new salt should be generated"
+    } || {
+      local dc_salt="$(gen_key 8)"
+      print "DEBUG: salt not detected; generating new one"
     }
+    # first key mutation
+    print "DEBUG: performing first mutation using salt "$dc_salt""
+    target_key="$(mutate_key "$target_key" "$dc_salt")"
     # create temp file for storing crypt data
     [ -f ""$target_data".crypt" ] && {
       rm -rf ""$target_data".crypt"
@@ -137,12 +138,29 @@ do_crypt() {
       rm -rf ""$target_data".crypt"
       exec {filedat}>&-
       trap "return 1" INT TERM
+      ((no_write_salt)) && {
+        rm -rf ""$target_data".salt"
+      } || {
+        print -rn -- "$dc_salt" > ""$target_data".salt"
+      }
+    } || {
+      ((no_write_salt)) && {
+        rm -rf ""$target_data".crypt.salt"
+      } || {
+        print -rn -- "$dc_salt" > ""$target_data".crypt.salt"
+      }
     }
   # else if data isnt a file
   } || {
     local key_counter=1
     set +o MULTIBYTE
-    ((no_write_salt)) || {
+    int decrypt keyln
+    ((decrypt)) && {
+      ((keyln<0)) && keyln=8
+      local dc_salt=${target_data::$keyln}
+      target_data=${target_data:$keyln}
+    } || {
+      local dc_salt="$(gen_key 8)"
       print -rn -- "$dc_salt"
     }
     while true; do
@@ -170,9 +188,9 @@ do_mt_crypt() {
   zmodload zsh/parameter
   local target_key="$1"
   local target_data="$2"
-  local -i chunk_size="$3"
-  local -i worker_id is_file
-  local threadcount=$(($(nproc)+1))
+  int chunk_size="$3"
+  int worker_id is_file
+  int threadcount=$(($(nproc)+1))
   # set chunk size to 1048576 (1mb) if empty or less-than 0
   ([ -z "$chunk_size" ] || ((chunk_size<0))) && {
     ((chunk_size=1048576))
