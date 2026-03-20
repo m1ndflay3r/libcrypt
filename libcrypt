@@ -35,7 +35,7 @@ mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
   # fetch key + salt
-  local og_key="$1" salt="$2" newchar new_char nuchar
+  local og_key="$1" salt="$2" newchar new_char
   ([ -z "$salt" ] || [ -z "$og_key" ] || ((${#og_key}<8))) && {
     return 1
   }
@@ -43,21 +43,24 @@ mutate_key() {
   local half1=${og_key:$((${#og_key}/2))} \
         half2=${og_key::$((${#og_key}/2))}
   # XOR steps
-  local -i salt_count salt_ln=${#salt}
+  local -i salt_count salt_ln=${#salt} salt_anticount=$((salt_ln+1))
   for ((i=0; i<$((${#og_key}/2)); i++)); do
     local char1=${half1:$i:1} \
           char2=${half2:$i:1}
     print -v newchar -n -- "\x${(l:2::0:)$(([##16]#char1^#char2))}"
     ((salt_count++))
+    ((salt_anticount--))
     ((salt_count>salt_ln)) && {
-      salt_count=1
+      ((salt_count=1))
     }
-    local salt_char=$salt[$salt_count]
+    ((salt_anticount=0)) && {
+      ((salt_anticount=salt_ln))
+    }
+    local salt_char=$salt[$salt_count] salt_antichar=$salt[$salt_anticount]
     print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char))}"
     new_key+="$new_char"
-    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#new_char^#char1))}"
-    print -v nuchar -n -- "\x${(l:2::0:)$(([##16]#nuchar^#char2))}"
-    new_key+="$nuchar"
+    print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_antichar))}"
+    new_key+="$new_char"
   done
 }
 
