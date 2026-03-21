@@ -31,6 +31,25 @@ gen_key() {
   return 0
 }
 
+do_rotl() {
+  local char="$1" strip
+  int rotl_count="$2"
+  ((rotl_count<=0)) && {
+    rotl_count=1
+  }
+  print -v char -n -- "${(l{8}{0})$(([##2]#char))}"
+  for ((i=0; i<$rotl_count; i++)); do
+    strip=${char::1}
+    char=${char:1}
+    char+="$strip"
+  done
+  print -v rotl -n -- "\x"${(l{8}{0})$(([##16]2#$char))}""
+}
+
+do_rotr() {
+  
+}
+
 mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
