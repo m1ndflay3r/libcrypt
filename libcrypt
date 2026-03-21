@@ -35,27 +35,22 @@ mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
   # fetch key + salt
-  local og_key="$1" salt="$2" newchar new_char
+  local og_key="$1" salt="$2" newchar workingchar
   ([ -z "$salt" ] || [ -z "$og_key" ] || ((${#og_key}<8))) && {
     return 1
   }
-  # split key into halves
-  local half1=${og_key:$((${#og_key}/2))} \
-        half2=${og_key::$((${#og_key}/2))}
+  local key_sum=$(noglob print -rn -- ""$og_key""$salt"" | sha512sum)
   # XOR steps
-  local -i salt_count salt_ln=${#salt}
-  for ((i=0; i<$((${#og_key}/2)); i++)); do
-    local char1=${half1:$i:1} \
-          char2=${half2:$i:1}
-    print -v newchar -n -- "\x${(l:2::0:)$(([##16]#char1^#char2))}"
-    new_key+="$newchar"
+  local -i salt_count salt_ln=${#key_sum}
+  for ((i=0; i<${#og_key}; i++)); do
+    workingchar=${og_key:$i:1}
     ((salt_count++))
     ((salt_count>salt_ln)) && {
       ((salt_count=1))
     }
-    local salt_char=$salt[$salt_count]
-    print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char))}"
-    new_key+="$new_char"
+    local salt_char=$key_sum[$salt_count]
+    print -v newchar -n -- "\x${(l:2::0:)$(([##16]#workingchar^#salt_char))}"
+    new_key+="$newchar"
   done
 }
 
