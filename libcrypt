@@ -35,7 +35,7 @@ mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
   # fetch key + salt
-  local og_key="$1" salt="$2" newchar new_char salt_char2
+  local og_key="$1" salt="$2" newchar new_char
   ([ -z "$salt" ] || [ -z "$og_key" ] || ((${#og_key}<8))) && {
     return 1
   }
@@ -57,10 +57,9 @@ mutate_key() {
       ((salt_anticount=salt_ln))
     }
     local salt_char=$salt[$salt_count] salt_antichar=$salt[$salt_anticount]
-    print -v salt_char2 -n -- "\x${(l:2::0:)$(([##16]#salt_antichar^#salt_char))}"
     print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char))}"
     new_key+="$new_char"
-    print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_char2))}"
+    print -v new_char -n -- "\x${(l:2::0:)$(([##16]#newchar^#salt_antichar))}"
     new_key+="$new_char"
   done
 }
