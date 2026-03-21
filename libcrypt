@@ -9,7 +9,7 @@ gen_key() {
   ((keyln<1)) && {
     keyln=128
   }
-  local -i genrnd_count=1
+  int genrnd_count=1
   local grnd_out working_num_raw
   exec {fd}< /dev/urandom
   trap "exec {fd}<&-; return 1" INT TERM
@@ -42,7 +42,7 @@ mutate_key() {
   # create hash sum from og_key + salt
   local key_sum=${"$(noglob print -rn -- ""$og_key""$salt"" | sha512sum)"%' -'}
   # XOR steps
-  local -i salt_count salt_ln=${#key_sum}
+  int salt_count salt_ln=${#key_sum}
   for ((i=0; i<${#og_key}; i++)); do
     workingchar=${og_key:$i:1}
     ((salt_count++))
