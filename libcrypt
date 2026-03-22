@@ -85,6 +85,32 @@ do_rotr() {
   rotr="$str"
 }
 
+# faster but less versatile rotl/rotr
+do_f_rotl() {
+  local working="$1" decim
+  int rotl_count="$2"
+  ((rotl_count<=0)) && {
+    rotl_count=1
+  }
+  local -a chars
+  ((${#working}!=4)) && {
+    return 1
+  }
+  # conv chars to decimal values
+  for ((i=1; i<=${#working}; i++)); do
+    decim=$working[$i]
+    chars+=("$((#decim))")
+  done
+  # pack decimal values into 32 bit int
+  local -i packed=$((($chars[1]<<24)|($chars[2]<<16)|($chars[3]<<8)|$chars[4]))
+  # perform rotation
+  rotl=$(((packed<<rotl_count)|(packed>>(32-rotl_count))&0xffffffff))
+}
+
+do_f_rotr() {
+  
+}
+
 mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
