@@ -104,7 +104,7 @@ do_f_rotl() {
   # pack decimal values into 32 bit int
   local -i packed=$((($chars[1]<<24)|($chars[2]<<16)|($chars[3]<<8)|$chars[4]))
   # perform rotation
-  rotl=$(((packed<<rotl_count)|(packed>>(32-rotl_count))&0xffffffff))
+  rotl=$((((packed<<rotl_count)|(packed>>(32-rotl_count)))&0xffffffff))
 }
 
 do_f_rotr() {
