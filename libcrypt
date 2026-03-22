@@ -31,23 +31,58 @@ gen_key() {
   return 0
 }
 
+str2bin() {
+  local working="$1" char
+  [ -z "$working" ] && return 1
+  int working_ln=${#working}
+  for ((i=1; i<=$working_ln; i++)); do
+    char=$working[$i]
+    print -v char -n -- ${(l{8}{0})$(([##2]#char))}
+    bin+="$char"
+  done
+}
+
+bin2str() {
+  local working="$1" char
+  [ -z "$working" ] && return 1
+  while true; do
+    char=${working::8}
+    working=${working:8}
+    [ -z "$char" ] && break
+    print -v char -n -- "\x"${(l{2}{0})$(([##16]2#$char))}""
+    str+="$char"
+  done
+}
+
 do_rotl() {
-  local char="$1" strip
+  local working="$1" bin str
   int rotl_count="$2"
   ((rotl_count<=0)) && {
     rotl_count=1
   }
-  print -v char -n -- "${(l{8}{0})$(([##2]#char))}"
+  [ -z "$working" ] && return 1
+  str2bin "$working"
   for ((i=0; i<$rotl_count; i++)); do
-    strip=${char::1}
-    char=${char:1}
-    char+="$strip"
+    bin=""${bin:1}""${bin::1}""
   done
-  print -v rotl -n -- "\x"${(l{8}{0})$(([##16]2#$char))}""
+  bin2str "$bin"
+  rotl="$str"
 }
 
 do_rotr() {
-  
+  local working="$1" bin str
+  int rotr_count="$2"
+  ((rotr_count<=0)) && {
+    rotr_count=1
+  }
+  [ -z "$working" ] && return 1
+  str2bin "$working"
+  int rotr_ln=$((${#bin}-1))
+  for ((i=0; i<rotr_count; i++)); do
+    bin=""${bin:$rotr_ln}""${bin::$rotr_ln}""
+  done
+  bin2str "$bin"
+  rotr="$str"
 }
 
 mutate_key() {
