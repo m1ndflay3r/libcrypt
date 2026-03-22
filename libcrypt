@@ -54,6 +54,7 @@ bin2str() {
   done
 }
 
+# slower but more versatile rotl/rotr (works with any arbitrary size)
 do_rotl() {
   local working="$1" bin str
   int rotl_count="$2"
@@ -85,7 +86,7 @@ do_rotr() {
   rotr="$str"
 }
 
-# faster but less versatile rotl/rotr
+# faster but less versatile rotl/rotr (can only process 4 bytes at a time)
 do_f_rotl() {
   local working="$1" decim
   int rotl_count="$2"
