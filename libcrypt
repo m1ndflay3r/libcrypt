@@ -130,8 +130,7 @@ tumble() {
     0x9b05688c # frac part of sqrt(13)
     0x1f83d9ab # frac part of sqrt(17)
     0x5be0cd19 # frac part of sqrt(19)
-)
-
+  )
 }
 
 mutate_key() {
