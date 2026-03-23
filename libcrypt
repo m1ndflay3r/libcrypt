@@ -119,6 +119,59 @@ do_f_rotr() {
   rotr=$((((packed>>rotr_count)|(packed<<(32-rotr_count)))&0xffffffff))
 }
 
+do_choose() {
+  local num1="$1" num2="$2" num3="$3" bin str wrk
+  str2bin "$num1" && num1="$bin"
+  bin=''
+  str2bin "$num2" && num2="$bin"
+  bin=''
+  str2bin "$num3" && num3="$bin"
+  for ((i=0; i<${#num1}; i++)); do
+    ((${num1:$i:1}==1)) && {
+      wrk+=${num2:$i:1}
+    } || {
+      wrk+=${num3:$i:1}
+    }
+  done
+  bin2str "$wrk"
+  choose="$str"
+}
+
+do_majority() {
+  local num1="$1" num2="$2" num3="$3" bin str wrk wrk2 plc
+  str2bin "$num1" && num1="$bin"
+  bin=''
+  str2bin "$num2" && num2="$bin"
+  bin=''
+  str2bin "$num3" && num3="$bin"
+  for ((i=0; i<${#num1}; i++)); do
+    wrk2=""${num1:$i:1}""${num2:$i:1}""${num3:$i:1}""
+    wrk=${wrk2//'0'/''}
+    wrk=${#wrk}
+    wrk2=${wrk2//'1'/''}
+    wrk2=${#wrk2}
+    ((wrk<wrk2)) && {
+      plc+='0'
+    } || {
+      plc+='1'
+    }
+  done
+  bin2str "$plc"
+  majority="$str"
+}
+
+do_f_choose() {
+  # expect three 32-bit (4 byte) inputs
+  local num1="$1" num2="$2" num3="$3"
+  choose=$((((num1&num2)^(~num1&num3))&0xffffffff))
+}
+
+do_f_majority() {
+  # expect three 32-bit (4 byte) inputs
+  local num1="$1" num2="$2" num3="$3"
+  majority=$(((num1&num2)^(num1&num3)^(num2&num3)))
+}
+
 tumble() {
   # starting state variables (h0 through h7)
   local -a -i state=(
