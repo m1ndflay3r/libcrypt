@@ -141,8 +141,9 @@ mutate_key() {
   ([ -z "$salt" ] || [ -z "$og_key" ] || ((${#og_key}<8))) && {
     return 1
   }
+  [ -z "$worker_id" ] && int worker_id
   # create hash sum from og_key + salt
-  local key_sum=${"$(noglob print -rn -- ""$og_key""$salt"" | sha512sum)"%' -'}
+  local key_sum=${"$(noglob print -rn -- ""$og_key""$salt""$worker_id"" | sha512sum)"%' -'}
   # XOR steps
   int salt_count salt_ln=${#key_sum}
   for ((i=0; i<${#og_key}; i++)); do
