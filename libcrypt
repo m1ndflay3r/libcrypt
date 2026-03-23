@@ -6,7 +6,7 @@ alias int="integer"
 gen_key() {
   int keyln=$1
   unset working_num_raw
-  ((keyln<1)) && {
+  ((keyln<8)) && {
     keyln=128
   }
   int genrnd_count=1
@@ -119,6 +119,21 @@ do_f_rotr() {
   rotr=$((((packed>>rotr_count)|(packed<<(32-rotr_count)))&0xffffffff))
 }
 
+tumble() {
+  # starting state variables (h0 through h7)
+  local -a -i state=(
+    0x6a09e667 # frac part of sqrt(2)
+    0xbb67ae85 # frac part of sqrt(3)
+    0x3c6ef372 # frac part of sqrt(5)
+    0xa54ff53a # frac part of sqrt(7)
+    0x510e527f # frac part of sqrt(11)
+    0x9b05688c # frac part of sqrt(13)
+    0x1f83d9ab # frac part of sqrt(17)
+    0x5be0cd19 # frac part of sqrt(19)
+)
+
+}
+
 mutate_key() {
   setopt LOCAL_OPTIONS
   set +o MULTIBYTE
@@ -162,6 +177,10 @@ do_crypt() {
     return 1
   }
   local target_key_ln=${#target_key}
+  ((target_key_ln<8)) && {
+    print "Error: key too small (must be minimum length of 8)"
+    return 1
+  }
   # fetch target data, error if empty
   local target_data="$2"
   [ -z "$target_data" ] && {
@@ -171,11 +190,19 @@ do_crypt() {
   # if data is file; read like one
   [ -f "$target_data" ] && {
     # if salt exist, use, and set no_write_salt; else gen new salt
-    [ -f ""$target_data".salt" ] && {
-      ((no_write_salt++))
-      local dc_salt=$(< ""$target_data".salt")
+    ((keystream!=1)) && {
+      [ -f ""$target_data".salt" ] && {
+        ((no_write_salt++))
+        local dc_salt=$(< ""$target_data".salt")
+      } || {
+        local dc_salt="$(gen_key 8)"
+      }
     } || {
-      local dc_salt="$(gen_key 8)"
+      ((no_write_salt++))
+      ([ -z "$dc_salt" ] || ((${#dc_salt}<8))) && {
+        print "Error: received malformed salt"
+        return 1
+      }
     }
     # first key mutation
     mutate_key "$target_key" "$dc_salt"
@@ -220,16 +247,20 @@ do_crypt() {
       rm -rf ""$target_data".crypt"
       exec {filedat}>&-
       trap "return 1" INT TERM
-      ((no_write_salt)) && {
-        rm -rf ""$target_data".salt"
-      } || {
-        print -rn -- "$dc_salt" > ""$target_data".salt"
+      ((keystream!=1)) && {
+        ((no_write_salt)) && {
+          rm -rf ""$target_data".salt"
+        } || {
+          print -rn -- "$dc_salt" > ""$target_data".salt"
+        }
       }
     } || {
-      ((no_write_salt)) && {
-        rm -rf ""$target_data".crypt.salt"
-      } || {
-        print -rn -- "$dc_salt" > ""$target_data".crypt.salt"
+      ((keystream!=1)) && {
+        ((no_write_salt)) && {
+          rm -rf ""$target_data".crypt.salt"
+        } || {
+          print -rn -- "$dc_salt" > ""$target_data".crypt.salt"
+        }
       }
     }
   # else if data isnt a file
@@ -237,13 +268,20 @@ do_crypt() {
     local key_counter=1
     set +o MULTIBYTE
     int decrypt keyln
-    ((decrypt)) && {
-      ((keyln<0)) && keyln=8
-      local dc_salt=${target_data::$keyln}
-      target_data=${target_data:$keyln}
+    ((keystream!=1)) && {
+      ((decrypt)) && {
+        ((keyln<0)) && keyln=8
+        local dc_salt=${target_data::$keyln}
+        target_data=${target_data:$keyln}
+      } || {
+        local dc_salt="$(gen_key 8)"
+        print -rn -- "$dc_salt"
+      }
     } || {
-      local dc_salt="$(gen_key 8)"
-      print -rn -- "$dc_salt"
+      ([ -z "$dc_salt" ] || ((dc_salt<8))) && {
+        print "Error: received malformed salt"
+        return 1
+      }
     }
     mutate_key "$target_key" "$dc_salt"
     target_key="$new_key"
@@ -272,11 +310,8 @@ do_mt_crypt() {
   set +o MULTIBYTE
   zmodload zsh/zselect
   zmodload zsh/parameter
-  local target_key="$1"
-  local target_data="$2"
-  int chunk_size="$3"
-  int worker_id is_file
-  int threadcount=$(($(nproc)+1))
+  local target_key="$1" target_data="$2" dc_salt
+  int chunk_size="$3" worker_id is_file threadcount=$(($(nproc)+1)) decrypt keystream
   # set chunk size to 1048576 (1mb) if empty or less-than 0
   ([ -z "$chunk_size" ] || ((chunk_size<0))) && {
     ((chunk_size=1048576))
@@ -290,19 +325,19 @@ do_mt_crypt() {
   # create working directory for process
   proc_id=$(mktemp -d /tmp/crypt_XXXXXXXX)
   trap "rm -rf $proc_id; return 1" INT TERM
-  # if is keystream, conv key to keyfile
-  ((keystream==1)) && {
-    touch $proc_id/key
-    exec {keyfd}> $proc_id/key
-    trap "exec {keyfd}>&-; rm -rf $proc_id; return 1" INT TERM
-    syswrite -o $keyfd "$target_key"
-    exec {keyfd}>&-
-    trap "rm -rf $proc_id; return 1" INT TERM
-    target_key=$proc_id/key
+  # read in target key if is file
+  [ -f "$target_key" ] && {
+    target_key=$(< "$target_key")
   }
-  # ensure target key not empty
-  [ -z "$(< "$target_key")" ] && {
-    print "Error: provided key is empty"
+  # if salt file exist, read in; else create
+  [ -f ""$target_data".salt" ] && {
+    dc_salt="$(< ""$target_data".salt")"
+  } || {
+    dc_salt="$(gen_key 8)"
+  }
+  # ensure target key is valid
+  ([ -z "$target_key" ] || ((${#target_key}<8))) && {
+    print "Error: received malformed key"
     return 1
   }
   # if target isn't a file, yes it is
@@ -334,7 +369,7 @@ do_mt_crypt() {
         zselect -t 0.1
       done
     }
-    do_crypt "$target_key" $proc_id/$worker_id &
+    keystream=1 do_crypt "$target_key" $proc_id/$worker_id &
     ((worker_id++))
   done
   # wait for remaining jobs to complete
@@ -361,7 +396,15 @@ do_mt_crypt() {
     done
     exec {sourcefd}>&-
     trap "rm -rf $proc_id; return 1" INT TERM
+    [ -f ""$target_data".salt" ] && {
+      rm -rf ""$target_data".salt"
+    } || {
+      noglob print -rn -- "$dc_salt" > ""$target_data".salt"
+    }
   } || {
+    ((decrypt)) || {
+      noglob print -rn -- "$dc_salt"
+    }
     for ((i=0; i<=$worker_id; i++)); do
       exec {chunkfd}< $proc_id/$i
       trap "exec {chunkfd}<&-; rm -rf $proc_id; return 1" INT TERM
