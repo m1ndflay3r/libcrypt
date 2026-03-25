@@ -35,7 +35,7 @@ str2bin() {
   local working="$1" char
   [ -z "$working" ] && return 1
   int working_ln=${#working}
-  for ((i=1; i<=$working_ln; i++)); do
+  for ((i=1; i<=working_ln; i++)); do
     char=$working[$i]
     print -v char -n -- ${(l{8}{0})$(([##2]#char))}
     bin+="$char"
@@ -63,7 +63,7 @@ do_rotl() {
   }
   [ -z "$working" ] && return 1
   str2bin "$working"
-  for ((i=0; i<$rotl_count; i++)); do
+  for ((i=0; i<rotl_count; i++)); do
     bin=""${bin:1}""${bin::1}""
   done
   bin2str "$bin"
@@ -84,6 +84,39 @@ do_rotr() {
   done
   bin2str "$bin"
   rotr="$str"
+}
+
+do_rshft() {
+  local working="$1" bin str
+  int rshft_count="$2"
+  ((rshft_count<=0)) && {
+    rshft_count=1
+  }
+  [ -z "$working" ] && return 1
+  str2bin "$working"
+  int rshft_ln=$((${#bin}-rshft_count))
+  bin=${bin::$rshft_ln}
+  for ((i=0; i<rshft_count; i++)); do
+    bin="0"$bin""
+  done
+  bin2str "$bin"
+  rshft="$str"
+}
+
+do_lshft() {
+  local working="$1" bin str
+  int lshft_count="$2"
+  ((lshft_count<=0)) && {
+    lshft_count=1
+  }
+  [ -z "$working" ] && return 1
+  str2bin "$working"
+  bin=${bin:$lshft_count}
+  for ((i=0; i<lshft_count; i++)); do
+    bin=""$bin"0"
+  done
+  bin2str "$bin"
+  lshft="$str"
 }
 
 # faster but less versatile rotl/rotr (can only process 4 bytes at a time)
@@ -173,6 +206,21 @@ do_f_majority() {
 }
 
 tumble() {
+  # starting state variables (h0 through h7)
+  local -a state=(
+    "\x6a\x09\xe6\x67" # frac part of sqrt(2)
+    "\xbb\x67\xae\x85" # frac part of sqrt(3)
+    "\x3c\x6e\xf3\x72" # frac part of sqrt(5)
+    "\xa5\x4f\xf5\x3a" # frac part of sqrt(7)
+    "\x51\x0e\x52\x7f" # frac part of sqrt(11)
+    "\x9b\x05\x68\x8c" # frac part of sqrt(13)
+    "\x1f\x83\xd9\xab" # frac part of sqrt(17)
+    "\x5b\xe0\xcd\x19" # frac part of sqrt(19)
+  )
+
+}
+
+do_f_tumble() {
   # starting state variables (h0 through h7)
   local -a -i state=(
     0x6a09e667 # frac part of sqrt(2)
