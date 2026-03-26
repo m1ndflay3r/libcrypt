@@ -235,6 +235,7 @@ f_sm_sig0() {
     w0=$((w1^w2^w3))
     sig0+="$w0"
   done
+  sig0=$((sig0&0xffffffff))
 }
 
 f_sm_sig1() {
@@ -249,6 +250,7 @@ f_sm_sig1() {
     w0=$((w1^w2^w3))
     sig1+="$w0"
   done
+  sig1=$((sig1&0xffffffff))
 }
 
 tumble() {
