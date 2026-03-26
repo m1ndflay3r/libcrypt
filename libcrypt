@@ -33,7 +33,6 @@ gen_key() {
 
 str2bin() {
   local working="$1" char
-  [ -z "$working" ] && return 1
   int working_ln=${#working}
   for ((i=1; i<=working_ln; i++)); do
     char=$working[$i]
@@ -44,7 +43,6 @@ str2bin() {
 
 bin2str() {
   local working="$1" char
-  [ -z "$working" ] && return 1
   while true; do
     char=${working::8}
     working=${working:8}
@@ -61,7 +59,6 @@ do_rotl() {
   ((rotl_count<=0)) && {
     rotl_count=1
   }
-  [ -z "$working" ] && return 1
   str2bin "$working"
   for ((i=0; i<rotl_count; i++)); do
     bin=""${bin:1}""${bin::1}""
@@ -76,7 +73,6 @@ do_rotr() {
   ((rotr_count<=0)) && {
     rotr_count=1
   }
-  [ -z "$working" ] && return 1
   str2bin "$working"
   int rotr_ln=$((${#bin}-1))
   for ((i=0; i<rotr_count; i++)); do
@@ -92,7 +88,6 @@ do_rshft() {
   ((rshft_count<=0)) && {
     rshft_count=1
   }
-  [ -z "$working" ] && return 1
   str2bin "$working"
   int rshft_ln=$((${#bin}-rshft_count))
   bin=${bin::$rshft_ln}
@@ -109,7 +104,6 @@ do_lshft() {
   ((lshft_count<=0)) && {
     lshft_count=1
   }
-  [ -z "$working" ] && return 1
   str2bin "$working"
   bin=${bin:$lshft_count}
   for ((i=0; i<lshft_count; i++)); do
@@ -154,11 +148,9 @@ do_f_rotr() {
 
 do_choose() {
   local num1="$1" num2="$2" num3="$3" bin str wrk
-  str2bin "$num1" && num1="$bin"
-  bin=''
-  str2bin "$num2" && num2="$bin"
-  bin=''
-  str2bin "$num3" && num3="$bin"
+  str2bin "$num1"; num1="$bin"; bin=''
+  str2bin "$num2"; num2="$bin"; bin=''
+  str2bin "$num3"; num3="$bin"
   for ((i=0; i<${#num1}; i++)); do
     ((${num1:$i:1}==1)) && {
       wrk+=${num2:$i:1}
@@ -172,17 +164,13 @@ do_choose() {
 
 do_majority() {
   local num1="$1" num2="$2" num3="$3" bin str wrk wrk2 plc
-  str2bin "$num1" && num1="$bin"
-  bin=''
-  str2bin "$num2" && num2="$bin"
-  bin=''
-  str2bin "$num3" && num3="$bin"
+  str2bin "$num1"; num1="$bin"; bin=''
+  str2bin "$num2"; num2="$bin"; bin=''
+  str2bin "$num3"; num3="$bin"
   for ((i=0; i<${#num1}; i++)); do
     wrk2=""${num1:$i:1}""${num2:$i:1}""${num3:$i:1}""
-    wrk=${wrk2//'0'/''}
-    wrk=${#wrk}
-    wrk2=${wrk2//'1'/''}
-    wrk2=${#wrk2}
+    wrk=${wrk2//'0'/''}; wrk=${#wrk}
+    wrk2=${wrk2//'1'/''}; wrk2=${#wrk2}
     ((wrk<wrk2)) && {
       plc+='0'
     } || {
@@ -203,6 +191,64 @@ do_f_majority() {
   # expect three 32-bit (4 byte) inputs
   local num1="$1" num2="$2" num3="$3"
   majority=$(((num1&num2)^(num1&num3)^(num2&num3)))
+}
+
+sm_sig0() {
+  local working="$1" rotr rshft num1 num2 num3 w1 w2 w3 w0
+  int working_ln=${#working}
+  do_rotr "$working" 7; num1="$rotr"; rotr=''
+  do_rotr "$working" 18; num2="$rotr"
+  do_rshft "$working" 3; num3="$rshft"
+  for ((i=0; i<working_ln; i++)); do
+    w1=${num1:$i:1}
+    w2=${num2:$i:1}
+    w3=${num3:$i:1}
+    w0=$((w1^w2^w3))
+    sig0+="$w0"
+  done
+}
+
+sm_sig1() {
+  local working="$1" rotr rshft num1 num2 num3 w1 w2 w3 w0
+  int working_ln=${#working}
+  do_rotr "$working" 17; num1="$rotr"; rotr=''
+  do_rotr "$working" 19; num2="$rotr"
+  do_rshft "$working" 10; num3="$rshft"
+  for ((i=0; i<working_ln; i++)); do
+    w1=${num1:$i:1}
+    w2=${num2:$i:1}
+    w3=${num3:$i:1}
+    w0=$((w1^w2^w3))
+    sig1+="$w0"
+  done
+}
+
+f_sm_sig0() {
+  local -i working="$1" working_ln=${#working} rotr rshft num1 num2 num3 w1 w2 w3 w0
+  do_f_rotr "$working" 7; num1="$rotr"; rotr=''
+  do_f_rotr "$working" 18; num2="$rotr"
+  num3=$((working>>3))
+  for ((i=0; i<working_ln; i++)); do
+    w1=${num1:$i:1}
+    w2=${num2:$i:1}
+    w3=${num3:$i:1}
+    w0=$((w1^w2^w3))
+    sig0+="$w0"
+  done
+}
+
+f_sm_sig1() {
+  local -i working="$1" working_ln=${#working} rotr rshft num1 num2 num3 w1 w2 w3 w0
+  do_f_rotr "$working" 17; num1="$rotr"; rotr=''
+  do_f_rotr "$working" 19; num2="$rotr"
+  num3=$((working>>10))
+  for ((i=0; i<working_ln; i++)); do
+    w1=${num1:$i:1}
+    w2=${num2:$i:1}
+    w3=${num3:$i:1}
+    w0=$((w1^w2^w3))
+    sig1+="$w0"
+  done
 }
 
 tumble() {
