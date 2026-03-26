@@ -217,7 +217,7 @@ tumble() {
     "\x1f\x83\xd9\xab" # frac part of sqrt(17)
     "\x5b\xe0\xcd\x19" # frac part of sqrt(19)
   )
-
+  
 }
 
 do_f_tumble() {
@@ -264,7 +264,7 @@ do_crypt() {
   # fetch key name, error if key not exist
   local target_key="$1"
   local new_key
-  int keystream no_write_salt
+  int keystream no_write_salt worker_id is_mt
   (! [ -f "$target_key" ] && ((keystream!=1))) && {
     print "Error: key not exist"
     return 1
@@ -328,6 +328,8 @@ do_crypt() {
       ((key_counter>target_key_ln)) && {
         new_key=''
         mutate_key "$target_key" "$dc_salt"
+        # if single thread, increment worker id; else let parent process handle it
+        ((is_mt!=1)) && ((worker_id++))
         target_key="$new_key"
         key_counter=1
       }
@@ -399,6 +401,8 @@ do_crypt() {
       ((key_counter>target_key_ln)) && {
         new_key=''
         mutate_key "$target_key" "$dc_salt"
+        # if single thread, increment worker id; else let parent process handle it
+        ((is_mt!=1)) && ((worker_id++))
         target_key="$new_key"
         key_counter=1
       }
@@ -470,7 +474,7 @@ do_mt_crypt() {
         zselect -t 0.1
       done
     }
-    keystream=1 do_crypt "$target_key" $proc_id/$worker_id &
+    is_mt=1 keystream=1 do_crypt "$target_key" $proc_id/$worker_id &
     ((worker_id++))
   done
   # wait for remaining jobs to complete
