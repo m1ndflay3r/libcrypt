@@ -288,7 +288,10 @@ do_crypt() {
   # fetch key name, error if key not exist
   local target_key="$1"
   local new_key
-  int keystream no_write_salt worker_id is_mt
+  int no_write_salt
+  [ -z "$worker_id" ] && int worker_id
+  [ -z "$is_mt" ] && int is_mt
+  [ -z "$keystream" ] && int keystream
   (! [ -f "$target_key" ] && ((keystream!=1))) && {
     print "Error: key not exist"
     return 1
@@ -394,7 +397,8 @@ do_crypt() {
   } || {
     local key_counter=1
     set +o MULTIBYTE
-    int decrypt keyln
+    [ -z "$decrypt" ] && int decrypt
+    [ -z "$keyln" ] && int keyln
     ((keystream!=1)) && {
       ((decrypt)) && {
         ((keyln<0)) && keyln=8
