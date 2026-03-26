@@ -115,8 +115,8 @@ do_lshft() {
 
 # faster but less versatile rotl/rotr (can only process 4 bytes at a time)
 do_f_rotl() {
-  local working="$1" decim
-  int rotl_count="$2"
+  local working="$1" bin
+  int rotl_count="$2" packed
   ((rotl_count<=0)) && {
     rotl_count=1
   }
@@ -125,14 +125,14 @@ do_f_rotl() {
     return 1
   }
   # pack decimal values into 32 bit int
-  local -i packed=$(((#working[1]<<24)|(#working[2]<<16)|(#working[3]<<8)|#working[4]))
+  str2bin "$working"; packed=$((2#$bin))
   # perform rotation
   rotl=$((((packed<<rotl_count)|(packed>>(32-rotl_count)))&0xffffffff))
 }
 
 do_f_rotr() {
-  local working="$1" decim
-  int rotr_count="$2"
+  local working="$1" bin
+  int rotr_count="$2" packed
   ((rotr_count<=0)) && {
     rotr_count=1
   }
@@ -141,7 +141,7 @@ do_f_rotr() {
     return 1
   }
   # pack decimal values into 32 bit int
-  local -i packed=$(((#working[1]<<24)|(#working[2]<<16)|(#working[3]<<8)|#working[4]))
+  str2bin "$working"; packed=$((2#$bin))
   # perform rotation
   rotr=$((((packed>>rotr_count)|(packed<<(32-rotr_count)))&0xffffffff))
 }
@@ -224,33 +224,19 @@ sm_sig1() {
 }
 
 f_sm_sig0() {
-  local -i working="$1" working_ln=${#working} rotr rshft num1 num2 num3 w1 w2 w3 w0
+  int working="$1" working_ln=${#working} rotr rshft num1 num2 num3
   do_f_rotr "$working" 7; num1="$rotr"; rotr=''
   do_f_rotr "$working" 18; num2="$rotr"
   num3=$((working>>3))
-  for ((i=0; i<working_ln; i++)); do
-    w1=${num1:$i:1}
-    w2=${num2:$i:1}
-    w3=${num3:$i:1}
-    w0=$((w1^w2^w3))
-    sig0+="$w0"
-  done
-  sig0=$((sig0&0xffffffff))
+  sig0=$(((num1^num2^num3)&0xffffffff))
 }
 
 f_sm_sig1() {
-  local -i working="$1" working_ln=${#working} rotr rshft num1 num2 num3 w1 w2 w3 w0
+  int working="$1" working_ln=${#working} rotr rshft num1 num2 num3
   do_f_rotr "$working" 17; num1="$rotr"; rotr=''
   do_f_rotr "$working" 19; num2="$rotr"
   num3=$((working>>10))
-  for ((i=0; i<working_ln; i++)); do
-    w1=${num1:$i:1}
-    w2=${num2:$i:1}
-    w3=${num3:$i:1}
-    w0=$((w1^w2^w3))
-    sig1+="$w0"
-  done
-  sig1=$((sig1&0xffffffff))
+  sig0=$(((num1^num2^num3)&0xffffffff))
 }
 
 tumble() {
