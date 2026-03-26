@@ -117,13 +117,8 @@ do_lshft() {
 do_f_rotl() {
   local working="$1" bin
   int rotl_count="$2" packed
-  ((rotl_count<=0)) && {
-    rotl_count=1
-  }
-  local -a chars
-  ((${#working}!=4)) && {
-    return 1
-  }
+  ((rotl_count<=0)) && rotl_count=1
+  ((${#working}!=4)) && return 1
   # pack decimal values into 32 bit int
   str2bin "$working"; packed=$((2#$bin))
   # perform rotation
@@ -133,13 +128,8 @@ do_f_rotl() {
 do_f_rotr() {
   local working="$1" bin
   int rotr_count="$2" packed
-  ((rotr_count<=0)) && {
-    rotr_count=1
-  }
-  local -a chars
-  ((${#working}!=4)) && {
-    return 1
-  }
+  ((rotr_count<=0)) && rotr_count=1
+  ((${#working}!=4)) && return 1
   # pack decimal values into 32 bit int
   str2bin "$working"; packed=$((2#$bin))
   # perform rotation
@@ -224,7 +214,7 @@ sm_sig1() {
 }
 
 f_sm_sig0() {
-  int working="$1" working_ln=${#working} rotr rshft num1 num2 num3
+  int working="$1" working_ln=${#working} rotr num1 num2 num3
   do_f_rotr "$working" 7; num1="$rotr"; rotr=''
   do_f_rotr "$working" 18; num2="$rotr"
   num3=$((working>>3))
@@ -232,7 +222,7 @@ f_sm_sig0() {
 }
 
 f_sm_sig1() {
-  int working="$1" working_ln=${#working} rotr rshft num1 num2 num3
+  int working="$1" working_ln=${#working} rotr num1 num2 num3
   do_f_rotr "$working" 17; num1="$rotr"; rotr=''
   do_f_rotr "$working" 19; num2="$rotr"
   num3=$((working>>10))
