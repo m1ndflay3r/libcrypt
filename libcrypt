@@ -301,8 +301,9 @@ mutate_key() {
     return 1
   }
   [ -z "$worker_id" ] && int worker_id
+  [ -z "$wid_micro" ] && int wid_micro
   # create hash sum from og_key + salt
-  local key_sum=${"$(noglob print -rn -- ""$og_key""$salt""$worker_id"" | sha512sum)"%' -'}
+  local key_sum=${"$(noglob print -rn -- ""$og_key""$salt""$worker_id""$wid_micro"" | sha512sum)"%' -'}
   # XOR steps
   int salt_count salt_ln=${#key_sum}
   for ((i=0; i<${#og_key}; i++)); do
@@ -322,7 +323,7 @@ do_crypt() {
   # fetch key name, error if key not exist
   local target_key="$1"
   local new_key
-  int no_write_salt
+  int no_write_salt wid_micro
   [ -z "$worker_id" ] && int worker_id
   [ -z "$is_mt" ] && int is_mt
   [ -z "$keystream" ] && int keystream
@@ -391,6 +392,7 @@ do_crypt() {
         mutate_key "$target_key" "$dc_salt"
         # if single thread, increment worker id; else let parent process handle it
         ((is_mt!=1)) && ((worker_id++))
+        ((wid_micro++))
         target_key="$new_key"
         key_counter=1
       }
@@ -465,6 +467,7 @@ do_crypt() {
         mutate_key "$target_key" "$dc_salt"
         # if single thread, increment worker id; else let parent process handle it
         ((is_mt!=1)) && ((worker_id++))
+        ((wid_micro++))
         target_key="$new_key"
         key_counter=1
       }
