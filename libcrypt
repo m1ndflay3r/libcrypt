@@ -153,30 +153,55 @@ do_f_rotr() {
 }
 
 do_choose() {
-  local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) wrk
+  [ -z "$emulate_f" ] && int emulate_f
+  ((emulate_f)) && {
+    local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) bin
+  } || {
+    local num1="$1" num2="$2" num3="$3" bin str
+    str2bin "$num1"; num1="$bin"; bin=''
+    str2bin "$num2"; num2="$bin"; bin=''
+    str2bin "$num3"; num3="$bin"; bin=''
+  }
   for ((i=0; i<${#num1}; i++)); do
     ((${num1:$i:1}==1)) && {
-      wrk+=${num2:$i:1}
+      bin+=${num2:$i:1}
     } || {
-      wrk+=${num3:$i:1}
+      bin+=${num3:$i:1}
     }
   done
-  choose=$((2#$wrk))
+  ((emulate_f)) && {
+    choose=$((2#$bin))
+  } || {
+    bin2str "$bin"
+    choose="$str"
+  }
 }
 
 do_majority() {
-  local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) wrk wrk2 plc
+  [ -z "$emulate_f" ] && int emulate_f
+  ((emulate_f)) && {
+    local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) bin bin2 plc
+  } || {
+    local num1="$1" num2="$2" num3="$3" bin bin2 str plc
+    str2bin "$num1"; num1="$bin"; bin=''
+    str2bin "$num2"; num2="$bin"; bin=''
+    str2bin "$num3"; num3="$bin"; bin=''
+  }
   for ((i=0; i<${#num1}; i++)); do
-    wrk2=""${num1:$i:1}""${num2:$i:1}""${num3:$i:1}""
-    wrk=${wrk2//'0'/''}; wrk=${#wrk}
-    wrk2=${wrk2//'1'/''}; wrk2=${#wrk2}
-    ((wrk<wrk2)) && {
+    bin2=""${num1:$i:1}""${num2:$i:1}""${num3:$i:1}""
+    bin=${bin2//'0'/''}; bin=${#bin}
+    bin2=${bin2//'1'/''}; bin2=${#bin2}
+    ((bin<bin2)) && {
       plc+='0'
     } || {
       plc+='1'
     }
   done
-  majority=$((2#$str))
+  ((emulate_f)) && {
+    majority=$((2#$plc))
+  } || {
+    bin2str "$plc"
+    majority="$str"
 }
 
 do_f_choose() {
