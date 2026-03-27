@@ -202,6 +202,7 @@ do_majority() {
   } || {
     bin2str "$plc"
     majority="$str"
+  }
 }
 
 do_f_choose() {
