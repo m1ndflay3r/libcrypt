@@ -56,30 +56,24 @@ bin2str() {
 do_rotl() {
   local working="$1" bin str
   int rotl_count="$2"
-  ((rotl_count<=0)) && {
-    rotl_count=1
-  }
+  ((rotl_count<=0)) && rotl_count=1
   str2bin "$working"
   for ((i=0; i<rotl_count; i++)); do
     bin=""${bin:1}""${bin::1}""
   done
-  bin2str "$bin"
-  rotl="$str"
+  rotl=$((2#$bin))
 }
 
 do_rotr() {
   local working="$1" bin str
   int rotr_count="$2"
-  ((rotr_count<=0)) && {
-    rotr_count=1
-  }
+  ((rotr_count<=0)) && rotr_count=1
   str2bin "$working"
   int rotr_ln=$((${#bin}-1))
   for ((i=0; i<rotr_count; i++)); do
     bin=""${bin:$rotr_ln}""${bin::$rotr_ln}""
   done
-  bin2str "$bin"
-  rotr="$str"
+  rotr=$((2#$bin))
 }
 
 do_rshft() {
@@ -94,8 +88,7 @@ do_rshft() {
   for ((i=0; i<rshft_count; i++)); do
     bin="0"$bin""
   done
-  bin2str "$bin"
-  rshft="$str"
+  rshft=$((2#$bin))
 }
 
 do_lshft() {
@@ -109,8 +102,7 @@ do_lshft() {
   for ((i=0; i<lshft_count; i++)); do
     bin=""$bin"0"
   done
-  bin2str "$bin"
-  lshft="$str"
+  lshft=$((2#$bin))
 }
 
 # faster but less versatile rotl/rotr (can only process 4 bytes at a time)
@@ -137,10 +129,7 @@ do_f_rotr() {
 }
 
 do_choose() {
-  local num1="$1" num2="$2" num3="$3" bin str wrk
-  str2bin "$num1"; num1="$bin"; bin=''
-  str2bin "$num2"; num2="$bin"; bin=''
-  str2bin "$num3"; num3="$bin"
+  local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) wrk
   for ((i=0; i<${#num1}; i++)); do
     ((${num1:$i:1}==1)) && {
       wrk+=${num2:$i:1}
@@ -148,15 +137,11 @@ do_choose() {
       wrk+=${num3:$i:1}
     }
   done
-  bin2str "$wrk"
-  choose="$str"
+  choose=$((2#$wrk))
 }
 
 do_majority() {
-  local num1="$1" num2="$2" num3="$3" bin str wrk wrk2 plc
-  str2bin "$num1"; num1="$bin"; bin=''
-  str2bin "$num2"; num2="$bin"; bin=''
-  str2bin "$num3"; num3="$bin"
+  local num1=$(([##2]$1)) num2=$(([##2]$2)) num3=$(([##2]$3)) wrk wrk2 plc
   for ((i=0; i<${#num1}; i++)); do
     wrk2=""${num1:$i:1}""${num2:$i:1}""${num3:$i:1}""
     wrk=${wrk2//'0'/''}; wrk=${#wrk}
@@ -167,8 +152,7 @@ do_majority() {
       plc+='1'
     }
   done
-  bin2str "$plc"
-  majority="$str"
+  majority=$((2#$str))
 }
 
 do_f_choose() {
