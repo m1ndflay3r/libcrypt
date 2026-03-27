@@ -56,29 +56,42 @@ bin2str() {
 do_rotl() {
   local working="$1" bin str
   int rotl_count="$2"
+  [ -z "$emulate_f" ] && int emulate_f
   ((rotl_count<=0)) && rotl_count=1
   str2bin "$working"
   for ((i=0; i<rotl_count; i++)); do
     bin=""${bin:1}""${bin::1}""
   done
-  rotl=$((2#$bin))
+  ((emulate_f)) && {
+    rotl=$((2#$bin))
+  } || {
+    bin2str "$bin"
+    rotl="$str"
+  }
 }
 
 do_rotr() {
   local working="$1" bin str
   int rotr_count="$2"
+  [ -z "$emulate_f" ] && int emulate_f
   ((rotr_count<=0)) && rotr_count=1
   str2bin "$working"
   int rotr_ln=$((${#bin}-1))
   for ((i=0; i<rotr_count; i++)); do
     bin=""${bin:$rotr_ln}""${bin::$rotr_ln}""
   done
-  rotr=$((2#$bin))
+  ((emulate_f)) && {
+    rotr=$((2#$bin))
+   } || {
+    bin2str "$bin"
+    rotr="$str"
+  }
 }
 
 do_rshft() {
   local working="$1" bin str
   int rshft_count="$2"
+  [ -z "$emulate_f" ] && int emulate_f
   ((rshft_count<=0)) && {
     rshft_count=1
   }
@@ -88,12 +101,18 @@ do_rshft() {
   for ((i=0; i<rshft_count; i++)); do
     bin="0"$bin""
   done
-  rshft=$((2#$bin))
+  ((emulate_f)) && {
+    rshft=$((2#$bin))
+   } || {
+    bin2str "$bin"
+    rshft="$str"
+  }
 }
 
 do_lshft() {
   local working="$1" bin str
   int lshft_count="$2"
+  [ -z "$emulate_f" ] && int emulate_f
   ((lshft_count<=0)) && {
     lshft_count=1
   }
@@ -102,7 +121,12 @@ do_lshft() {
   for ((i=0; i<lshft_count; i++)); do
     bin=""$bin"0"
   done
-  lshft=$((2#$bin))
+  ((emulate_f)) && {
+    lshft=$((2#$bin))
+   } || {
+    bin2str "$bin"
+    lshft="$str"
+  }
 }
 
 # faster but less versatile rotl/rotr (can only process 4 bytes at a time)
